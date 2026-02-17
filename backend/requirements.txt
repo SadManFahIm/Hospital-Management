@@ -1,0 +1,30 @@
+# MedCore HMS - Backend Dependencies
+# Python 3.11+
+
+# Web Framework
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+
+# Database
+sqlalchemy==2.0.36
+aiosqlite==0.20.0
+# For PostgreSQL (production):
+# asyncpg==0.30.0
+# psycopg2-binary==2.9.10
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.12
+
+# Configuration
+pydantic==2.10.0
+pydantic-settings==2.6.1
+pydantic[email]==2.10.0
+
+# HTTP Client
+httpx==0.27.2
+
+# Development
+pytest==8.3.3
+pytest-asyncio==0.24.0
