@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # Session/token housekeeping
+    # Interval (seconds) between automatic cleanups of expired refresh sessions
+    # and expired token-blacklist records. 3600 == hourly.
+    CLEANUP_INTERVAL_SECONDS: int = 3600
+
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./medcore_hms.db"
     # For PostgreSQL: postgresql+asyncpg://user:password@localhost/medcore_hms

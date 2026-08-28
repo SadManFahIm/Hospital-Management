@@ -5,7 +5,7 @@ Dashboard Analytics Endpoints
 from datetime import date
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,7 +80,7 @@ async def get_doctor_stats(
 ):
     """Get stats for the logged-in doctor"""
     if current_user.role not in ["doctor", "admin"]:
-        return {"error": "Access denied"}
+        raise HTTPException(status_code=403, detail="Access denied")
 
     doctor = await db.scalar(
         select(Doctor).where(Doctor.user_id == current_user.id)
