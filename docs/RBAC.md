@@ -1,24 +1,52 @@
 # RBAC - Role-Based Access Control Matrix
 
 This document is the authoritative reference for the authorization model
-(self-service + admin) across the **Patients**, **Doctors**, and
-**Appointments** modules. The backend is the sole authority for authorization;
-frontend checks (if any) are for UX only and never trust the client.
+(currently Foundation — authentication layer only).
+
+---
 
 ## Roles
 
 | Role | Description |
 |------|-------------|
-| `admin`  | Full system administration. Elevated create/update/delete/approve/admit/discharge rights. |
-| `doctor` | Clinical staff. Read patient/doctor/appointment data, update own profile, manage assigned patients, view own appointments. |
-| `patient` | End users. Read doctors, manage only their **own** patient record and appointments. |
+| `admin`  | Full system administration (future phases). |
+| `doctor` | Clinical staff (future phases). |
+| `patient` | End users (future phases). |
 
 Roles are stored server-side as `UserRole` enum (`ADMIN`, `DOCTOR`, `PATIENT`)
-and enforced via the centered permission registry in
-`backend/app/core/security.py` (`PERMISSIONS`, `user_has_permission`,
-`require_permission`, `require_role`).
+in `backend/app/core/enums.py` and referenced by `backend/app/core/security.py`.
 
-## Permission Registry (backend/app/core/security.py)
+---
+
+## Current Implementation (Foundation)
+
+The Foundation branch implements only the **authentication layer**.
+Full RBAC enforcement on resource endpoints (Patients, Doctors, Appointments)
+is deferred to Phase 3–4.
+
+### What Exists Now
+
+- **Auth endpoints** (`/api/v1/auth/*`):
+  - `POST /login` — authenticate, returns access + refresh token
+  - `POST /register` — register new patient (role=patient)
+  - `POST /refresh` — rotate refresh token
+  - `POST /logout` — revoke refresh session + blacklist access token
+  - `POST /change-password` — change password with current-password check
+
+- **Token lifecycle:**
+  - Access token: 15 min, signed JWT (HS256)
+  - Refresh token: 7 days, stored in `refresh_sessions` table
+  - Rotation: single-use; reuse revokes all user sessions
+  - Logout: blacklists access token JTI in `token_blacklist`
+
+- **RBAC foundation:**
+  - `UserRole` enum (`ADMIN`, `DOCTOR`, `PATIENT`) in `app/core/enums.py`
+  - `require_role`, `require_permission` helpers in `security.py`
+  - Dependency guards: `get_current_user`, `require_admin`, `require_doctor`
+
+---
+
+## Planned Permission Matrix (Phase 3–4)
 
 | Permission | Admin | Doctor | Patient |
 |-----------|:-----:|:------:|:-------:|
@@ -39,88 +67,55 @@ and enforced via the centered permission registry in
 | `appointments.update` | ✔ | ✔ (own) | ✔ (own) |
 | `appointments.delete` | ✔ | – | – |
 | `appointments.cancel` | ✔ | ✔ (own) | ✔ (own) |
-| `billing.read/create` | ✔ | – | – |
-| `discharge.read/create` | ✔ | – | – |
-| `reports.read/export`, `audit_logs.read` | ✔ | – | – |
 
-> `doctors.read` and `doctors.create` permission checks are applied with
-> `require_permission(...)`. Resource ownership is enforced at the endpoint /
-> service layer in addition to the registry (see below).
+> **Note:** The above matrix is the design target for Phase 3–4.
+> Current Foundation branch does not implement resource endpoints yet.
 
-## Endpoint Matrix
+---
 
-### Patients (`/api/v1/patients`)
+## Resource-Level Authorization (IDOR / BOLA) — Planned
 
-| Endpoint | Method | Dependency | Access |
-|----------|--------|-----------|--------|
-| `/` (list) | GET | `get_current_user` | admin/doctor: all; patient: own record only |
-| `/me` | GET | `get_current_user` | any; returns caller's own patient record |
-| `/{id}` | GET | `get_current_user` | patient: own only (403 otherwise); doctor/admin: any |
-| `/` (create) | POST | `patients.create` | admin |
-| `/{id}` | PUT | `get_current_user` + owner check | admin; patient-owner; assigned doctor |
-| `/{id}` | DELETE | `patients.delete` | admin |
-| `/{id}/admit` | PATCH | `patients.admit` | admin |
-| `/{id}/discharge` | PATCH | `patients.discharge` | admin |
-
-### Doctors (`/api/v1/doctors`)
-
-| Endpoint | Method | Dependency | Access |
-|----------|--------|-----------|--------|
-| `/` (list) | GET | `doctors.read` | admin/doctor/patient |
-| `/{id}` | GET | `doctors.read` | admin/doctor/patient |
-| `/` (create) | POST | `doctors.create` | admin |
-| `/{id}` | PUT | `get_current_user` + owner check | admin; doctor own profile |
-| `/{id}/approve` | PATCH | `doctors.approve` | admin |
-| `/{id}` | DELETE | `doctors.delete` | admin |
-| `/{id}/patients` | GET | `require_doctor` | admin/doctor; doctor sees own patients only |
-
-### Appointments (`/api/v1/appointments`)
-
-| Endpoint | Method | Dependency | Access |
-|----------|--------|-----------|--------|
-| `/` (list) | GET | `get_current_user` | admin: all; doctor: own; patient: own |
-| `/{id}` | GET | `get_current_user` + owner check | patient/doctor: own; admin: any |
-| `/` (create) | POST | `get_current_user` + patient scope | admin: any; doctor: any; patient: own only |
-| `/{id}` | PATCH | `get_current_user` + owner check | admin: any; patient/doctor: own |
-| `/{id}` | DELETE | `get_current_user` | admin only |
-
-## Resource-Level Authorization (IDOR / BOLA)
-
-Object ownership is enforced server-side for every record the current user is
-allowed to partially access:
+When resource endpoints are implemented (Phase 3–4), object ownership will be
+enforced server-side:
 
 - **Patients:** a `patient` may only read/update their own `Patient` record
-  (`Patient.user_id == current_user.id`). A patient who knows another
-  patient's ID is rejected with `403`.
+  (`Patient.user_id == current_user.id`).
 - **Appointments:** a `patient` may only read/update appointments where
   `appointment.patient.user_id == current_user.id`; a `doctor` only where
-  `appointment.doctor.user_id == current_user.id`. Cross-owner access ⇒ `403`.
+  `appointment.doctor.user_id == current_user.id`.
 - **Doctors:** a `doctor` may update only their own profile
-  (`Doctor.user_id == current_user.id`); the `/{id}/patients` listing returns
-  `[]` if the doctor requests another doctor's patient list.
+  (`Doctor.user_id == current_user.id`).
 - Booking scope: a `patient` cannot create an appointment for another patient
   (`403`).
 
-## Auth Behavior
+---
 
-- Missing / invalid / expired access token → **401**.
-- Authenticated but missing required role/permission or resource ownership → **403**.
+## Auth Behavior (Current)
+
+- Missing / invalid / expired access token → **401**
+- Authenticated but missing required role/permission or resource ownership → **403**
 - Refresh-token flow: single-use rotation with reuse detection (reuse revokes
-  all of the user's sessions). See the auth security task notes.
+  all of the user's sessions)
 
-## Verification Status
+---
 
-- [x] Patients endpoints verified
-- [x] Doctors endpoints verified
-- [x] Appointments endpoints verified
-- [x] Imports verified (app starts, all routes registered)
-- [x] Auth dependencies verified
-- [x] RBAC matrix documented (this file)
-- [x] RBAC tests added (`backend/tests/test_rbac.py`)
-- [x] Unauthorized access tests pass
-- [x] IDOR/BOLA checks pass
-- [x] Existing backend tests pass (44 total)
-- [ ] Lint passes (blocked: no ESLint/backend linter config in repo - see notes)
-- [x] Type checking passes (frontend `tsc --noEmit`)
-- [x] Application starts successfully
-- [x] No auth regression remains
+## Verification Status (Foundation)
+
+- [x] Auth endpoints: login, register, refresh, logout, password change
+- [x] Token lifecycle: rotation, reuse detection, revocation, blacklist
+- [x] RBAC foundation: `UserRole` enum, `require_role`, `require_permission`
+- [x] Dependencies: `get_current_user`, `require_admin`, `require_doctor`
+- [x] Auth tests: 18 tests passing (`backend/tests/test_auth.py`)
+- [x] Application starts; all auth routes registered
+- [x] Type checking passes (Foundation scope)
+- [x] CI pipeline configured
+
+---
+
+## Next Steps (Phase 3–4)
+
+- Implement Patients/Doctors/Appointments CRUD endpoints
+- Enforce resource ownership (IDOR/BOLA protection) at endpoint/service layer
+- Add security headers middleware
+- Add audit logging for security events
+- Expand RBAC test coverage (`test_rbac.py`)

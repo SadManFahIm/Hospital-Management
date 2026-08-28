@@ -3,7 +3,8 @@ API v1 Main Router
 """
 
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, users, doctors, patients, appointments, dashboard, discharge
+
+from app.api.v1.endpoints import appointments, auth, dashboard, discharge, doctors, patients, users
 
 api_router = APIRouter()
 

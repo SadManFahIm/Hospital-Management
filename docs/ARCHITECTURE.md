@@ -1,8 +1,8 @@
-# Architecture — MedCore HMS v2.0
+# Architecture — MedCore HMS (Foundation — Phase 1–2)
 
 High-level architecture and operational guidance for the MedCore Hospital
-Management System. This document covers the current state after **Phase 2**
-(foundation: Alembic migrations, structured logging, and quality gates / CI).
+Management System. This document covers the current state after **Phase 1–2**
+(foundation: authentication, Alembic migrations, structured logging, CI).
 
 ---
 
@@ -10,7 +10,7 @@ Management System. This document covers the current state after **Phase 2**
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 18 + TypeScript + Vite, React Router, TanStack Query, Zustand, Tailwind CSS, Recharts, zod + react-hook-form |
+| Frontend | React 18 + TypeScript + Vite, React Router, TanStack Query, Zustand, Tailwind CSS |
 | Backend | Python 3.11 + FastAPI (async), SQLAlchemy 2.0 (async) ORM |
 | Database | SQLite (dev/test) via `aiosqlite`; PostgreSQL (production, `asyncpg`) |
 | Auth | JWT access + refresh tokens (python-jose), server-side session/blacklist tracking |
@@ -22,7 +22,7 @@ Monorepo layout:
 
 ```
 backend/             FastAPI application
-  app/core/          config, security, database, enums, logging, middleware
+  app/core/          config, security, database, enums, logging
   app/models/        SQLAlchemy models (authoritative in app/models/__init__.py)
   app/schemas/       Pydantic schemas
   app/services/      business / service layer
@@ -41,7 +41,7 @@ docs/                RBAC matrix, architecture
 FastAPI application in `backend/main.py`. On startup (lifespan):
 
 - `setup_logging()` configures JSON logging.
-- `RequestLoggingMiddleware` is attached for per-request access logs + request ids.
+- Request logging middleware attached for per-request access logs + request IDs.
 - `create_tables()` runs **only when `ENVIRONMENT != "production"`** (dev/test).
   Production schema is managed exclusively by Alembic.
 
@@ -74,13 +74,12 @@ environment variables take precedence over `.env`.
     `import app.models` so autogenerate sees the full `Base.metadata`.
   - **Creating/Altering schema:** `alembic revision --autogenerate -m "..."`,
     review the diff, then `alembic upgrade head`.
-  - **Fresh DB:** `alembic upgrade head` builds all 7 tables + `alembic_version`.
+  - **Fresh DB:** `alembic upgrade head` builds all 8 tables + `alembic_version`.
   - **Existing DB (schema already present):** `alembic stamp head` records the
     current revision without running DDL (non-destructive; preserves data).
-- Migrations are versioned in `alembic/versions/`: baseline `79c551ff8c41`
-  captures the original 7 tables, and Phase-4 `dd1ad76f15f0` adds the
-  appointment-duration columns, composite appointment indexes, and the
-  `audit_logs` table. `alembic upgrade head` applies both in order.
+  - Baseline migration `79c551ff8c41` captures the initial 8 tables:
+    `users`, `doctors`, `patients`, `appointments`, `audit_logs`,
+    `discharge_details`, `refresh_sessions`, `token_blacklist`.
 
 ### Authentication & authorization
 
@@ -92,10 +91,10 @@ environment variables take precedence over `.env`.
   `user_has_permission`, `require_role`). HTTPBearer uses `auto_error=False` so
   missing credentials yield **401** (not 403). See `docs/RBAC.md`.
 
-### Logging (`app/core/log.py`, `app/core/middleware.py`)
+### Logging (`app/core/log.py`)
 
 JSON structured logs (timestamp ISO-8601 UTC, level, logger, message,
-`request_id`, `_extra`, exception). `RequestLoggingMiddleware`:
+`request_id`, `_extra`, exception). Request middleware:
 - Generates a UUID request id and sets the `request_id` contextvar.
 - Logs one access line per request (method, path, status, duration_ms).
 - Logs unhandled exceptions server-side **without** leaking details to clients.
@@ -116,9 +115,9 @@ React + Vite SPA in `frontend/`. `npm run build` runs `tsc && vite build`
 
 Run from `backend/` (back) or `frontend/` (front):
 
-| Gate | Command | Expectation |
+| Gate | Command | Expectation (Foundation) |
 |---|---|---|
-| Backend tests | `pytest tests/ -q` | 72 passed |
+| Backend tests | `pytest tests/ -q` | 18 passed (auth suite) |
 | Backend lint | `ruff check .` | All checks passed |
 | Backend type-check | `mypy` | Success (scoped to core + schemas) |
 | Frontend build | `npm run build` | tsc + vite pass |
@@ -130,8 +129,8 @@ Run from `backend/` (back) or `frontend/` (front):
 
 ### Mypy scope (documented)
 
-Mypy is scoped to the Phase-2 infrastructure core + schemas
-(`config, log, middleware, security, database, schemas`).
+Mypy is scoped to the Foundation infrastructure core + schemas
+(`config, log, security, database, schemas`).
 `app/models`, `app/services`, and `app/api` currently use the classic SQLAlchemy
 `Column`-attribute style whose mapper types conflict with instance assignments;
 migrating them to the `Mapped[...]` annotation style is a **deferred**,
@@ -158,14 +157,10 @@ modules without reporting their (deferred) errors.
 - Scheduling enrichment: working hours / availability / holidays / doctor leave /
   recurring availability / override rules (foundation helpers exist in
   `app/core/scheduling.py`).
-- Appointment-reschedule slot race hardening (the create path already locks the
-  doctor row; see "Authentication & authorization" / `UPGRADE_ROADMAP.md`).
-- UI pagination controls on list pages (backend `Page` envelope is implemented;
-  the admin pages render the first page).
 - Splitting `models/__init__.py` / `schemas/__init__.py` into separate files
   (the empty per-file placeholders remain for a future split; the monolithic
   `__init__.py` files are authoritative).
 
-A full, current Phase 1-4 status matrix is maintained in
-`docs/REMAINING_PHASE_1_4_WORK.md`. See `/UPGRADE_ROADMAP.md` for the phased
+A full, current Phase 1–4 status matrix is maintained in
+`docs/REMAINING_PHASE_1_4_WORK.md`. See `UPGRADE_ROADMAP.md` for the phased
 plan, acceptance criteria, and verification notes.

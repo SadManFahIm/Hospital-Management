@@ -2,13 +2,14 @@
 Doctors API Endpoints
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import get_db
-from app.core.security import require_admin, require_doctor, get_current_user
-from app.schemas import DoctorResponse, DoctorCreate, DoctorUpdate
+from app.core.security import get_current_user, require_admin, require_doctor
+from app.schemas import DoctorCreate, DoctorResponse, DoctorUpdate
 from app.services.doctor_service import DoctorService
 
 router = APIRouter()

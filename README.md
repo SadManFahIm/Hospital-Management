@@ -1,261 +1,345 @@
-# 🏥 MedCore HMS v2.0
+# MedCore HMS
 
-### Modern Hospital Management System
-
-## 📸 Preview
-
-### Landing Page
-
-![Landing Page](screenshots/landing.png)
-
-### Login Page
-
-![Login Page](screenshots/login.png)
-
-### Register Page
-
-![Register Page](screenshots/register.png)
+A modern hospital management system built with React 18 + TypeScript (frontend) and FastAPI + SQLAlchemy 2.0 (backend).
 
 ---
 
-A fully upgraded, production-ready hospital management system built with a modern tech stack — replacing the legacy Django/template system with a clean React + FastAPI architecture.
+## Project Overview
+
+MedCore HMS is a hospital management system designed to replace a legacy Django application with a modern, type-safe, async-first architecture.
+
+**Current Scope (Foundation — Phase 1–2):**
+- JWT authentication with access/refresh token rotation
+- Role-based access control foundation (Admin, Doctor, Patient roles)
+- Structured logging with request correlation IDs
+- Database migration infrastructure (Alembic)
+- Quality gates: Ruff, Mypy, Pytest in CI
+- Health monitoring endpoint
+- React + Vite frontend with Tailwind CSS
+
+**Not Yet Implemented (Upcoming Phases):**
+- Patient/Doctor/Appointment CRUD (Phase 3–4)
+- Dashboard analytics & charts
+- Discharge/billing workflows
+- Real-time notifications, telemedicine, SMS/email reminders
 
 ---
 
-## ✨ What's New in v2.0
-
-| Feature    | Old (Django)     | New (MedCore v2)                 |
-| ---------- | ---------------- | -------------------------------- |
-| Frontend   | Django Templates | **React 18 + TypeScript**        |
-| Backend    | Django Views     | **FastAPI (async)**              |
-| API        | Server-rendered  | **REST API + OpenAPI docs**      |
-| Auth       | Django sessions  | **JWT + Refresh tokens**         |
-| Security   | Group-based      | **RBAC (Role-based)**            |
-| Database   | ORM (sync)       | **SQLAlchemy async**             |
-| UI         | Bootstrap 3      | **Tailwind CSS + Framer Motion** |
-| State      | Page reloads     | **Zustand + React Query**        |
-| Deployment | Manual           | **Docker Compose**               |
-
----
-
-## 🏗️ Architecture
+## Architecture
 
 ```
 medcore-hms/
-├── frontend/              # React 18 + TypeScript + Vite
+├── frontend/                 # React 18 + TypeScript + Vite
 │   ├── src/
-│   │   ├── components/    # Reusable UI components
-│   │   │   └── layout/    # DashboardLayout with collapsible sidebar
-│   │   ├── pages/
-│   │   │   ├── admin/     # Admin dashboard, doctors, patients, appointments
-│   │   │   ├── doctor/    # Doctor dashboard, schedule, patients
-│   │   │   └── patient/   # Patient dashboard, appointments, doctors
-│   │   ├── services/      # Axios API client with auto-refresh
-│   │   ├── store/         # Zustand auth store (persisted)
-│   │   └── styles/        # Tailwind global styles
+│   │   ├── components/       # Reusable UI components
+│   │   │   └── layout/       # DashboardLayout with collapsible sidebar
+│   │   ├── pages/            # Page components (login, register, dashboard stubs)
+│   │   ├── services/         # Axios API client with token interceptors
+│   │   ├── store/            # Zustand auth store (persisted)
+│   │   └── styles/           # Tailwind global styles
 │   └── Dockerfile
 │
-├── backend/               # FastAPI + SQLAlchemy Async
+├── backend/                  # FastAPI + SQLAlchemy 2.0 Async
 │   ├── app/
-│   │   ├── api/v1/        # Versioned REST endpoints
-│   │   │   └── endpoints/ # auth, doctors, patients, appointments, dashboard
-│   │   ├── core/          # Config, DB, Security utilities
-│   │   ├── models/        # SQLAlchemy ORM models
-│   │   ├── schemas/       # Pydantic request/response schemas
-│   │   └── services/      # Business logic layer
-│   ├── main.py
+│   │   ├── api/v1/           # Versioned REST endpoints
+│   │   │   └── endpoints/    # auth (login, register, refresh, logout, password change)
+│   │   ├── core/             # Config, Database, Security, Logging, Enums
+│   │   ├── models/           # SQLAlchemy ORM models (User, Doctor, Patient, Appointment, etc.)
+│   │   ├── schemas/          # Pydantic request/response schemas
+│   │   └── services/         # Business logic (AuthService, UserService)
+│   ├── main.py               # FastAPI app with lifespan, CORS, router
 │   ├── requirements.txt
 │   └── Dockerfile
 │
-├── docker-compose.yml     # Full stack deployment
+├── alembic/                  # Database migrations
+│   ├── env.py
+│   ├── script.py.mako
+│   └── versions/
+│       └── 79c551ff8c41_baseline_schema.py  # Baseline: 8 tables
+│
+├── .github/workflows/ci.yml  # CI pipeline (Ruff, Mypy, Pytest, Frontend build)
+├── docker-compose.yml        # Full stack (PostgreSQL, Redis, Backend, Frontend)
 └── README.md
 ```
 
----
+### Data Flow
 
-## 🚀 Quick Start
-
-### Option 1: Docker (Recommended)
-
-```bash
-# Clone and start everything
-git clone <repo>
-cd medcore-hms
-
-# Copy environment files
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-
-# Start all services
-docker-compose up -d
-
-# Access:
-# Frontend: http://localhost:80
-# API Docs: http://localhost:8000/api/docs
+```
+Browser (React + TypeScript)
+    │
+    ▼
+REST API (FastAPI)
+    │
+    ▼
+Service Layer (AuthService, UserService)
+    │
+    ▼
+SQLAlchemy 2.0 Async ORM
+    │
+    ▼
+PostgreSQL (production) / SQLite (dev/test)
 ```
 
-### Option 2: Local Development
+**Supporting Infrastructure:**
+- Redis: Caching & session store (configured, not yet used by Foundation)
+- Alembic: Schema migrations
+- Docker Compose: Local full-stack deployment
+- GitHub Actions: CI pipeline
 
-**Backend:**
+---
+
+## Tech Stack
+
+| Layer | Technology | Version |
+|-------|------------|---------|
+| Frontend Framework | React | 18 |
+| Language | TypeScript | 5.x |
+| Build Tool | Vite | 6.x |
+| Styling | Tailwind CSS | 4.x |
+| State Management | Zustand | 5.x |
+| HTTP Client | Axios | 1.x |
+| Backend Framework | FastAPI | 0.115.x |
+| ORM | SQLAlchemy | 2.0.x |
+| Validation | Pydantic | 2.10.x |
+| Auth | Python-JOSE (JWT) + Passlib/bcrypt | 3.3.x / 1.7.x |
+| ASGI Server | Uvicorn | 0.32.x |
+| Database (Prod) | PostgreSQL | 16+ |
+| Database (Dev/Test) | SQLite + aiosqlite | 3.x / 0.20.x |
+| Migrations | Alembic | 1.19.x |
+| Linting | Ruff | 0.16.x |
+| Type Checking | Mypy | 2.3.x |
+| Testing | Pytest | 8.3.x |
+| Containerization | Docker Compose | v2 |
+
+---
+
+## Current Implementation Status
+
+### ✅ Implemented (Foundation — Phase 1–2)
+
+**Authentication & Security**
+- JWT access tokens (15 min) + refresh tokens (7 days) with rotation
+- Refresh token reuse detection & revocation
+- Token blacklist for logout
+- Password hashing with bcrypt
+- Password change with current-password verification
+- Role-based access control: `Admin`, `Doctor`, `Patient` enums
+
+**Architecture & Core**
+- Async SQLAlchemy 2.0 with session dependency injection
+- Alembic baseline migration (`79c551ff8c41`) — 8 tables
+- Structured JSON logging (`log.py`) with request correlation IDs
+- Centralized enums (`enums.py`): `UserRole`, `AppointmentStatus`, `AuditAction`, `Department`
+- Pydantic schemas for auth (`LoginRequest`, `PasswordChange`, `Token`, `TokenRefresh`)
+
+**Quality Gates & CI**
+- GitHub Actions workflow (`.github/workflows/ci.yml`)
+- Ruff linting (line-length 100, targeted rules)
+- Mypy type checking (Foundation-scoped: config, log, security, database, schemas)
+- Pytest with isolated SQLite test database
+- Frontend: TypeScript + Vite production build
+
+**Health & Operations**
+- `/health` endpoint — returns `{status, version, service}`
+- Docker Compose for local full-stack (PostgreSQL, Redis, Backend, Frontend)
+
+---
+
+### ⏳ Not Yet Implemented (Planned Phases)
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| **Phase 3** | Security hardening (headers, middleware), session cleanup, RBAC enforcement, discharge/dashboard endpoints | Upcoming |
+| **Phase 4** | Patient/Doctor/Appointment CRUD, pagination, scheduling, audit logs, conflict detection | Upcoming |
+| **Phase 5** | Frontend ESLint, UI pagination controls, doctor/patient pages, rate limiting, password reset UI | Not started |
+
+---
+
+## Development Setup
+
+### Prerequisites
+- Python 3.11+
+- Node.js 20+
+- Docker & Docker Compose (for full-stack)
+- PostgreSQL 16+ (production)
+
+### Environment Variables
+
+**Backend** (`backend/.env` — copy from `backend/.env.example`):
+```bash
+SECRET_KEY=your-super-secret-key-change-in-production-min-32-chars
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+DATABASE_URL=sqlite+aiosqlite:///./medcore_hms.db
+# Production: postgresql+asyncpg://user:pass@localhost/medcore_hms
+DEBUG=true
+ENVIRONMENT=development
+```
+
+**Frontend** (`frontend/.env` — copy from `frontend/.env.example`):
+```bash
+VITE_API_URL=http://localhost:8000/api/v1
+```
+
+### Backend (Local)
 
 ```bash
 cd backend
+
+# Create & activate virtual environment
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 
-cp .env.example .env
-# Edit .env with your settings
+# Run database migrations (creates local SQLite DB)
+alembic upgrade head
 
+# Start development server
 uvicorn main:app --reload --port 8000
-# API available at: http://localhost:8000
-# Swagger docs at: http://localhost:8000/api/docs
+
+# API docs: http://localhost:8000/api/docs
+# Health:    http://localhost:8000/health
 ```
 
-**Frontend:**
+### Frontend (Local)
 
 ```bash
 cd frontend
-npm install
 
-cp .env.example .env
-# VITE_API_URL=http://localhost:8000/api/v1
+# Install dependencies
+npm ci
 
+# Start dev server
 npm run dev
-# App available at: http://localhost:3000
+
+# App: http://localhost:5173
 ```
 
----
-
-## 🔐 Demo Credentials
-
-| Role    | Email               | Password     |
-| ------- | ------------------- | ------------ |
-| Admin   | admin@medcore.com   | Admin@1234   |
-| Doctor  | doctor@medcore.com  | Doctor@1234  |
-| Patient | patient@medcore.com | Patient@1234 |
-
----
-
-## 🎭 User Roles & Permissions
-
-### 👑 Admin
-
-- View all dashboard analytics & charts
-- Manage doctors (add, approve, remove)
-- Manage patients (admit, discharge)
-- View/approve all appointments
-- Generate discharge bills & invoices
-
-### 🩺 Doctor
-
-- Personal dashboard with schedule
-- View assigned patients
-- Manage own appointments (approve/complete)
-- View patient discharge details
-
-### 🧑‍⚕️ Patient
-
-- Personal health dashboard
-- Book appointments with doctors
-- View appointment history
-- Access discharge bills
-
----
-
-## 📡 API Endpoints
-
-| Method | Endpoint                       | Description           |
-| ------ | ------------------------------ | --------------------- |
-| POST   | `/api/v1/auth/login`           | Authenticate user     |
-| POST   | `/api/v1/auth/register`        | Register patient      |
-| POST   | `/api/v1/auth/refresh`         | Refresh JWT token     |
-| GET    | `/api/v1/doctors/`             | List doctors          |
-| POST   | `/api/v1/doctors/`             | Create doctor (admin) |
-| PATCH  | `/api/v1/doctors/{id}/approve` | Approve doctor        |
-| GET    | `/api/v1/patients/`            | List patients         |
-| PATCH  | `/api/v1/patients/{id}/admit`  | Admit patient         |
-| GET    | `/api/v1/appointments/`        | List appointments     |
-| POST   | `/api/v1/appointments/`        | Book appointment      |
-| GET    | `/api/v1/dashboard/stats`      | Admin analytics       |
-
-Full API documentation available at `/api/docs` (Swagger) or `/api/redoc`.
-
----
-
-## 🛠️ Tech Stack
-
-### Frontend
-
-- **React 18** - UI framework with concurrent features
-- **TypeScript** - Type safety
-- **Vite** - Fast build tool
-- **Tailwind CSS** - Utility-first styling
-- **Framer Motion** - Smooth animations
-- **React Router v6** - Client-side routing
-- **Zustand** - Lightweight state management (persisted)
-- **TanStack Query** - Server state & caching
-- **Axios** - HTTP client with interceptors
-- **Recharts** - Dashboard analytics charts
-- **React Hot Toast** - Toast notifications
-
-### Backend
-
-- **FastAPI** - Modern async Python web framework
-- **SQLAlchemy 2.0** - Async ORM
-- **Pydantic v2** - Data validation
-- **Python-JOSE** - JWT authentication
-- **Passlib/bcrypt** - Password hashing
-- **Uvicorn** - ASGI server
-
-### Infrastructure
-
-- **Docker + Docker Compose** - Containerization
-- **PostgreSQL** - Production database
-- **Redis** - Caching layer
-- **Nginx** - Reverse proxy & static files
-
----
-
-## 🔒 Security Features
-
-- **JWT Authentication** with access + refresh token rotation
-- **RBAC** (Role-Based Access Control) - Admin, Doctor, Patient
-- **Password hashing** with bcrypt
-- **CORS** protection with configurable origins
-- **Input validation** with Pydantic schemas
-- **SQL injection protection** via ORM
-- **Rate limiting** ready (configurable)
-
----
-
-## 📦 Production Deployment
+### Full Stack (Docker)
 
 ```bash
-# Set production environment variables
-export SECRET_KEY="your-very-secure-secret-key-min-32-chars"
-export DB_PASSWORD="your-secure-database-password"
+# From repo root
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 
-# Build and deploy
-docker-compose -f docker-compose.yml up -d --build
+docker-compose up -d
 
-# Scale backend workers
-docker-compose up -d --scale backend=3
+# Frontend: http://localhost
+# API:      http://localhost:8000
+# API Docs: http://localhost:8000/api/docs
+```
+
+### Running Tests & Checks
+
+**Backend:**
+```bash
+cd backend
+
+# Lint
+ruff check app tests
+
+# Type check
+mypy
+
+# Tests (18 auth tests)
+pytest tests/ -v
+
+# All checks
+ruff check app tests && mypy && pytest tests/ -q
+```
+
+**Frontend:**
+```bash
+cd frontend
+
+# TypeScript check
+npx tsc --noEmit
+
+# Production build
+npm run build
+```
+
+**Alembic (Database):**
+```bash
+cd backend
+
+# Check current revision
+alembic current
+
+# Create new migration
+alembic revision --autogenerate -m "description"
+
+# Apply migrations
+alembic upgrade head
+
+# Downgrade one revision
+alembic downgrade -1
 ```
 
 ---
 
-## 🔮 Future Expansion
+## CI Pipeline
 
-- [ ] Real-time notifications (WebSocket)
-- [ ] SMS/Email appointment reminders
-- [ ] Telemedicine video calls
-- [ ] Lab results & medical records
-- [ ] Prescription management
-- [ ] Insurance billing integration
-- [ ] Multi-hospital support
-- [ ] Mobile app (React Native)
+**GitHub Actions** (`.github/workflows/ci.yml`)
+
+| Job | Steps |
+|-----|-------|
+| **Backend** | `ruff check` → `mypy` → `pytest tests/` |
+| **Frontend** | `npm ci` → `npm run build` (includes `tsc`) |
+
+Runs on: push to `main`/`develop`, all pull requests.
 
 ---
 
-_Built with Faahim Sadman — MedCore HMS v2.0 | Upgrading from Django legacy system_
+## Security
+
+**Implemented in Foundation:**
+- JWT authentication with short-lived access tokens + rotating refresh tokens
+- Refresh token reuse detection (invalidates session on reuse)
+- Token blacklist for explicit revocation (logout)
+- Password hashing via bcrypt (cost factor 12)
+- Role-based access control foundation (`UserRole` enum, dependency guards)
+- Input validation via Pydantic schemas
+- SQL injection protection via SQLAlchemy ORM
+- CORS configured with explicit allowed origins
+
+**Deferred / Not Yet Implemented:**
+- Security headers middleware (Phase 3)
+- Rate limiting (requires Redis integration decision)
+- Password reset flow (documented in `docs/SECURITY.md`, not implemented)
+- Account lockout / brute-force protection
+- Audit logging for security events (Phase 4)
+
+---
+
+## Documentation
+
+| File | Purpose |
+|------|---------|
+| `docs/ARCHITECTURE.md` | System architecture, data flow, design decisions |
+| `docs/RBAC.md` | Role-based access control matrix & permissions |
+| `docs/SECURITY.md` | Security model, token lifecycle, threat model, password reset workflow |
+| `docs/REMAINING_PHASE_1_4_WORK.md` | Phase 1–4 task reconciliation & deferral rationale |
+| `UPGRADE_ROADMAP.md` | Original phase-by-phase upgrade plan |
+
+---
+
+## Roadmap
+
+- [x] **Phase 1** — Authentication & RBAC Foundation
+- [x] **Phase 2** — Architecture, Migrations, Logging, CI
+- [ ] **Phase 3** — Security Hardening & RBAC Enforcement
+- [ ] **Phase 4** — Core Hospital Domain (Patients, Doctors, Appointments)
+- [ ] **Phase 5** — Frontend Polish, ESLint, Rate Limiting, Password Reset UI
+
+---
+
+## License
+
+Internal project — not licensed for public distribution.

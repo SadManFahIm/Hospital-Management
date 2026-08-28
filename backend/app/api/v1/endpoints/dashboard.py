@@ -2,16 +2,17 @@
 Dashboard Analytics Endpoints
 """
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
+
+from fastapi import APIRouter, Depends
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_admin
+from app.models import Appointment, DischargeDetails, Doctor, Patient, User
 from app.schemas import DashboardStats
-from app.models import User, Doctor, Patient, Appointment, DischargeDetails
 
 router = APIRouter()
 
@@ -37,7 +38,7 @@ async def get_dashboard_stats(
 
     # Admitted patients
     admitted_patients = await db.scalar(
-        select(func.count(Patient.id)).where(Patient.is_admitted == True)
+        select(func.count(Patient.id)).where(Patient.is_admitted)
     )
 
     # Today's appointments
@@ -56,7 +57,7 @@ async def get_dashboard_stats(
     # Approved doctors
     approved_doctors = await db.scalar(
         select(func.count(User.id)).where(
-            and_(User.role == "doctor", User.is_approved == True)
+            and_(User.role == "doctor", User.is_approved)
         )
     )
 
