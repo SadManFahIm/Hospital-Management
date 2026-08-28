@@ -3,14 +3,13 @@ MedCore HMS - Hospital Management System
 Modern FastAPI Backend with JWT Authentication & RBAC
 """
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 
+from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import create_tables
-from app.api.v1.router import api_router
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
