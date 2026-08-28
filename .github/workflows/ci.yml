@@ -34,7 +34,7 @@ jobs:
         run: mypy
 
       - name: Pytest
-        run: pytest tests/ -q
+        run: PYTHONPATH=. pytest tests/ -q
 
   frontend:
     name: Frontend typecheck / build
