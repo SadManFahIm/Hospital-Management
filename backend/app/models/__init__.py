@@ -3,41 +3,23 @@ SQLAlchemy Database Models
 """
 
 from sqlalchemy import (
-    Column, Integer, String, Boolean, DateTime, Date, Text,
-    ForeignKey, Enum as SAEnum, Numeric
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
 )
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
-import enum
-
-
-class UserRole(str, enum.Enum):
-    ADMIN = "admin"
-    DOCTOR = "doctor"
-    PATIENT = "patient"
-
-
-class AppointmentStatus(str, enum.Enum):
-    PENDING = "pending"
-    APPROVED = "approved"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-
-
-class Department(str, enum.Enum):
-    CARDIOLOGIST = "Cardiologist"
-    DERMATOLOGIST = "Dermatologist"
-    EMERGENCY = "Emergency Medicine"
-    ALLERGIST = "Allergist/Immunologist"
-    ANESTHESIOLOGIST = "Anesthesiologist"
-    SURGEON = "Colon and Rectal Surgeon"
-    NEUROLOGIST = "Neurologist"
-    ORTHOPEDIC = "Orthopedic Surgeon"
-    PEDIATRICIAN = "Pediatrician"
-    PSYCHIATRIST = "Psychiatrist"
-    RADIOLOGIST = "Radiologist"
-    ONCOLOGIST = "Oncologist"
+from app.core.enums import AppointmentStatus, AuditAction, Department, UserRole
 
 
 class User(Base):
@@ -78,6 +60,7 @@ class Doctor(Base):
     consultation_fee = Column(Numeric(10, 2), default=0)
     bio = Column(Text, nullable=True)
     available_days = Column(String(200), default="Mon,Tue,Wed,Thu,Fri")
+    default_duration_minutes = Column(Integer, default=30)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -112,12 +95,20 @@ class Patient(Base):
 
 class Appointment(Base):
     __tablename__ = "appointments"
+    __table_args__ = (
+        # Support the most common query patterns: scheduling lookups by doctor
+        # or patient on a given date, and status filtering.
+        Index("ix_appointments_doctor_date", "doctor_id", "appointment_date"),
+        Index("ix_appointments_patient_date", "patient_id", "appointment_date"),
+        Index("ix_appointments_status", "status"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
     doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False)
-    appointment_date = Column(Date, nullable=False)
+    appointment_date = Column(Date, nullable=False, index=True)
     appointment_time = Column(String(20), nullable=True)
+    duration_minutes = Column(Integer, default=30)
     description = Column(Text, nullable=True)
     status = Column(SAEnum(AppointmentStatus), default=AppointmentStatus.PENDING)
     notes = Column(Text, nullable=True)
@@ -148,3 +139,58 @@ class DischargeDetails(Base):
 
     # Relationships
     patient = relationship("Patient", back_populates="discharge_details")
+
+
+class TokenBlacklist(Base):
+    """Blacklisted (revoked) JWT tokens (revoked access tokens), e.g. after logout."""
+    __tablename__ = "token_blacklist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    jti = Column(String(255), unique=True, index=True, nullable=False)
+    token_type = Column(String(20), nullable=False, default="access")
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class RefreshSession(Base):
+    """Tracks issued refresh tokens per user. Enables rotation reuse detection,
+    per-user session revocation (logout), and revoke-all on password change."""
+    __tablename__ = "refresh_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    jti = Column(String(255), unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    revoked = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    user = relationship("User", backref="refresh_sessions")
+
+
+class AuditLog(Base):
+    """Immutable trace of significant actions (see docs/DOMAIN_MODEL.md).
+
+    Never stores passwords, tokens, or unnecessary medical payloads.
+    ``actor_user_id`` is nullable (system/background actions); no cascade so a
+    deleted user does not destroy the audit trail.
+    """
+    __tablename__ = "audit_logs"
+    __table_args__ = (
+        Index("ix_audit_logs_resource", "resource_type", "resource_id"),
+        Index("ix_audit_logs_created_at", "created_at"),
+        Index("ix_audit_logs_actor", "actor_user_id"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    actor_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    actor_role = Column(String(20), nullable=True)
+    action = Column(SAEnum(AuditAction), nullable=False, index=True)
+    resource_type = Column(String(50), nullable=False)
+    resource_id = Column(Integer, nullable=True)
+    details = Column(Text, nullable=True)
+    request_id = Column(String(64), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    actor = relationship("User", foreign_keys=[actor_user_id])

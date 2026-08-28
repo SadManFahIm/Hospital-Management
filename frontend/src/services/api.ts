@@ -51,8 +51,13 @@ export const authAPI = {
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }),
   register: (data: any) => api.post('/auth/register', data),
-  logout: () => api.post('/auth/logout'),
+  logout: (refreshToken: string) => api.post('/auth/logout', { refresh_token: refreshToken }),
   me: () => api.get('/auth/me'),
+  changePassword: (oldPassword: string, newPassword: string) =>
+    api.post('/auth/change-password', {
+      old_password: oldPassword,
+      new_password: newPassword,
+    }),
 }
 
 // ─── Doctors API ───────────────────────────────────────────────────────────────

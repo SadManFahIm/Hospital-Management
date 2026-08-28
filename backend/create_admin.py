@@ -1,7 +1,9 @@
 import asyncio
-from app.core.database import AsyncSessionLocal, engine, Base
+
+from app.core.database import AsyncSessionLocal, Base, engine
 from app.core.security import get_password_hash
 from app.models import User, UserRole
+
 
 async def create_admin():
     async with engine.begin() as conn:

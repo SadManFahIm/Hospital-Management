@@ -2,25 +2,25 @@
 Pydantic Schemas for Request/Response validation
 """
 
-from pydantic import BaseModel, EmailStr, Field, validator
-from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
-from enum import Enum
+from typing import Generic, List, Optional, TypeVar
+
+from pydantic import BaseModel, EmailStr, Field, validator
+
+from app.core.enums import AppointmentStatus, UserRole
+
+T = TypeVar("T")
 
 
-class UserRole(str, Enum):
-    ADMIN = "admin"
-    DOCTOR = "doctor"
-    PATIENT = "patient"
+class Page(BaseModel, Generic[T]):
+    """Reusable paginated list envelope used by all list endpoints."""
 
-
-class AppointmentStatus(str, Enum):
-    PENDING = "pending"
-    APPROVED = "approved"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-
+    items: List[T]
+    total: int
+    page: int
+    per_page: int
+    pages: int
 
 # ─── Auth Schemas ──────────────────────────────────────────────────────────────
 
@@ -50,8 +50,37 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=8)
+    password: str = Field(..., min_length=8, max_length=128)
     role: UserRole = UserRole.PATIENT
+
+    @validator("password")
+    def validate_password_strength(cls, v):
+        if not any(c.islower() for c in v):
+            raise ValueError("password must contain at least one lowercase letter")
+        if not any(c.isupper() for c in v):
+            raise ValueError("password must contain at least one uppercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("password must contain at least one digit")
+        if not any(c in "!@#$%^&*()-_=+[]{}|;:,.<>?/" for c in v):
+            raise ValueError("password must contain at least one special character")
+        return v
+
+
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+    @validator("new_password")
+    def validate_new_password(cls, v):
+        if not any(c.islower() for c in v):
+            raise ValueError("password must contain at least one lowercase letter")
+        if not any(c.isupper() for c in v):
+            raise ValueError("password must contain at least one uppercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("password must contain at least one digit")
+        if not any(c in "!@#$%^&*()-_=+[]{}|;:,.<>?/" for c in v):
+            raise ValueError("password must contain at least one special character")
+        return v
 
 
 class UserResponse(UserBase):
@@ -80,9 +109,10 @@ class DoctorBase(BaseModel):
     address: Optional[str] = None
     qualification: Optional[str] = None
     experience_years: Optional[int] = 0
-    consultation_fee: Optional[Decimal] = 0
+    consultation_fee: Optional[Decimal] = Decimal("0")
     bio: Optional[str] = None
     available_days: Optional[str] = "Mon,Tue,Wed,Thu,Fri"
+    default_duration_minutes: Optional[int] = Field(30, ge=5, le=240)
 
 
 class DoctorCreate(BaseModel):
@@ -144,7 +174,21 @@ class AppointmentBase(BaseModel):
     doctor_id: int
     appointment_date: date
     appointment_time: Optional[str] = None
+    duration_minutes: Optional[int] = Field(None, ge=5, le=240)
     description: Optional[str] = None
+
+    @validator("appointment_time")
+    def validate_time(cls, v):
+        if v is None:
+            return v
+        try:
+            from datetime import datetime as _dt
+            _dt.strptime(v, "%H:%M")
+        except ValueError:
+            raise ValueError(
+                "appointment_time must be in HH:MM (24h) format"
+            ) from None
+        return v
 
 
 class AppointmentCreate(AppointmentBase):
@@ -157,6 +201,7 @@ class AppointmentResponse(BaseModel):
     doctor_id: int
     appointment_date: date
     appointment_time: Optional[str] = None
+    duration_minutes: Optional[int] = 30
     description: Optional[str] = None
     status: AppointmentStatus
     notes: Optional[str] = None
@@ -173,6 +218,20 @@ class AppointmentUpdate(BaseModel):
     notes: Optional[str] = None
     appointment_date: Optional[date] = None
     appointment_time: Optional[str] = None
+    duration_minutes: Optional[int] = Field(None, ge=5, le=240)
+
+    @validator("appointment_time")
+    def validate_time(cls, v):
+        if v is None:
+            return v
+        try:
+            from datetime import datetime as _dt
+            _dt.strptime(v, "%H:%M")
+        except ValueError:
+            raise ValueError(
+                "appointment_time must be in HH:MM (24h) format"
+            ) from None
+        return v
 
 
 # ─── Discharge Schemas ─────────────────────────────────────────────────────────
@@ -181,10 +240,10 @@ class DischargeCreate(BaseModel):
     patient_id: int
     admit_date: date
     release_date: date
-    room_charge: Decimal = 0
-    medicine_cost: Decimal = 0
-    doctor_fee: Decimal = 0
-    other_charges: Decimal = 0
+    room_charge: Decimal = Decimal("0")
+    medicine_cost: Decimal = Decimal("0")
+    doctor_fee: Decimal = Decimal("0")
+    other_charges: Decimal = Decimal("0")
     diagnosis: Optional[str] = None
     treatment_summary: Optional[str] = None
 
@@ -211,11 +270,3 @@ class DashboardStats(BaseModel):
     todays_appointments: int
     revenue_this_month: Decimal
     approved_doctors: int
-
-
-class PaginatedResponse(BaseModel):
-    items: List
-    total: int
-    page: int
-    per_page: int
-    pages: int

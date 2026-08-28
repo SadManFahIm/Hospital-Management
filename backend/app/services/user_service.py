@@ -1,9 +1,10 @@
 """User Service Layer"""
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.security import get_password_hash
 from app.models import User
 from app.schemas import UserCreate
-from app.core.security import get_password_hash
 
 
 class UserService:

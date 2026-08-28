@@ -1,6 +1,6 @@
 """Appointment Service"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select
+
 from app.models import Appointment
 from app.schemas import AppointmentCreate, AppointmentUpdate
 
