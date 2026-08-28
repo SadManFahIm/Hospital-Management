@@ -214,10 +214,16 @@ class AuthService:
 
     @staticmethod
     async def cleanup_expired_sessions(db: AsyncSession):
-        """Remove expired refresh sessions (housekeeping)."""
+        """Remove expired refresh sessions and expired token-blacklist records.
+
+        Preserves revoked-but-unexpired refresh sessions (required for
+        refresh-token reuse detection within a token's validity window).
+        """
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         await db.execute(
-            delete(RefreshSession).where(RefreshSession.expires_at < now)
+            delete(RefreshSession).where(
+                RefreshSession.expires_at < now, RefreshSession.revoked.is_(False)
+            )
         )
         await db.execute(
             delete(TokenBlacklist).where(TokenBlacklist.expires_at < now)
