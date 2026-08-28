@@ -2,10 +2,12 @@
 Async Database Configuration with SQLAlchemy
 """
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
-from app.core.config import settings
+from typing import AsyncIterator
 
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
+
+from app.core.config import settings
 
 engine = create_async_engine(
     settings.DATABASE_URL,
@@ -24,14 +26,23 @@ class Base(DeclarativeBase):
     pass
 
 
+# Import the model package so every model is registered on Base.metadata.
+# Without this import, create_all / Alembic autogenerate would silently miss
+# tables if the models had not already been imported elsewhere via side-effects.
+import app.models  # noqa: E402,F401
+
+
 async def create_tables():
-    """Create all database tables"""
+    """Create all database tables.
+
+    Intended ONLY for local development and isolated tests. Production schema is
+    managed by Alembic migrations (`alembic upgrade head`).
+    """
     async with engine.begin() as conn:
-        from app.models import user, doctor, patient, appointment  # noqa
         await conn.run_sync(Base.metadata.create_all)
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncIterator[AsyncSession]:
     """Dependency to get database session"""
     async with AsyncSessionLocal() as session:
         try:

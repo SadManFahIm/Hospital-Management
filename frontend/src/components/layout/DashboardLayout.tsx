@@ -53,8 +53,12 @@ export default function DashboardLayout({ role }: { role: 'admin' | 'doctor' | '
   const roleConfig = roleBadgeConfig[role]
 
   const handleLogout = async () => {
+    // Best effort: revoke the refresh token server-side before clearing local state.
+    const refreshToken = useAuthStore.getState().refreshToken
     try {
-      await authAPI.logout()
+      if (refreshToken) {
+        await authAPI.logout(refreshToken)
+      }
     } catch {}
     logout()
     navigate('/login')
